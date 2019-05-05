@@ -285,12 +285,13 @@ Docker configuration to create a webserver based on Nginx and a webpage located 
     docker run --name docker-nginx -p 80:80 -d -v ~/docker-nginx/html:/usr/share/nginx/html nginx
   ```
   Note: due to compatibility issues with Trusty64, the docker version installed is 18.06.1
-    ```bash
+
+  ```bash
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
     add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
     apt-get update
     apt-get install -y docker-ce=18.06.1~ce~3-0~ubuntu jq --assume-yes --force-yes
-    ```
+  ```
 
 ## How-to test
 
