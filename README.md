@@ -27,55 +27,55 @@ The subnetting needs to be designed to accommodate the following requirement (no
 
      +------+
      |      |
-     |      +----------------------------------------------+
-     |      |                                          eth0|
-     |      |           +--------+                     +--------+
-     |      |           |        |                     |        |
-     |      |       eth0|        |                     |        |
-     |      +-----------+ROUTER 1+--------------------->ROUTER 2|
-     |      |           |        |eth2             eth2|        |
-     |      |           |        |                     |        |
-     |      |           +--------+                     +--------+
-     |      |               |eth1                           |eth1
-     |      |               |                               |
-     |      |               |eth1                           |eth1
-     |      |       +-------v----------+                +---v---+
-     |      |   eth0|                  |                |       |
-     |      +-------+     SWITCH       |                |HOST C |
-     |      |       |                  |                |       |
-     |      |       +------------------+                +-------+
-     |      |           |eth2      |eth3                   |eth0
-     |      |           |eth1      |eth1                   |
-     |      |       +---v---+  +---v---+                   |
-     |      |   eth0|       |  |       |                   |
-     |      +-------+HOST A |  |HOST B |                   |
-     |      |       |       |  |       |                   |
-     |      |       +-------+  +---+---+                   |
-     |      |                      |eth0                   |
-     |      +----------------------+                       |
-     |      +----------------------------------------------+
+     |      +-------------------------------------------------+
+     |      |                                             eth0|
+     |      |           +----------+                     +----+-----+
+     |      |           |          |                     |          |
+     |      |       eth0|          |                     |          |
+     |      +-----------+ ROUTER 1 +---------------------+ ROUTER 2 |
+     |      |           |          |eth2             eth2|          |
+     |      |           |          |                     |          |
+     |      |           +----+-----+                     +----+-----+
+     |      |                |eth1                            |eth1
+     |      |                |                                |
+     |      |                |eth1                            |eth1
+     |      |       +--------+----------+                 +---+----+
+     |      |   eth0|                   |                 |        |
+     |      +-------+      SWITCH       |                 | HOST C |
+     |      |       |                   |                 |        |
+     |      |       +----+----------+---+                 +---+----+
+     |      |            |eth2      |eth3                 eth0|
+     |      |            |eth1      |eth1                     |
+     |      |       +----+---+  +---+----+                    |
+     |      |   eth0|        |  |        |                    |
+     |      +-------+ HOST A |  | HOST B |                    |
+     |      |       |        |  |        |                    |
+     |      |       +--------+  +---+----+                    |
+     |      |                       |eth0                     |
+     |      +-----------------------+                         |
+     |      +-------------------------------------------------+
      +------+
 
 ### Subnets
 
 The network is divided in 4 different subnets:
 
--   **A** including `host-1-a` and `router-1`. The subnet is a /24 so you can get IP addresses for 254 different hosts (130 minimum required)
-
--   **B** including `host-1-b` and `router-1`. The subnet is a /27 so you can get IP addresses for 30 different hosts (25 minimum required)
-
--   **C** including `router-1` and `router-2`. The subnet is a /30 so you can get IP addresses for 2 different hosts
-
--   **D** including `router-2` and `host-2-c`. The subnet is a /30 so you can get IP addresses for 2 different hosts
+| Subnet | Devices                   | Netmask         | Description                          |
+| ------ | ------------------------- | --------------- | ------------------------------------ |
+| A      | `host-1-a` and `router-1` | 255.255.255.0   | IP addresses for 254 different hosts |
+| B      | `host-1-b` and `router-1` | 255.255.255.224 | IP addresses for 30 different hosts  |
+| C      | `router-1` and `router-2` | 255.255.255.252 | IP addresses for 2 different hosts   |
+| D      | `router-2` and `host-2-c` | 255.255.255.252 | IP addresses for 2 different hosts   |
 
 ### VLANs
 
-Two different VLANs allow `router-1` to connect two different subnets via unique port. This two VLANs are marked with VIDs:
+VLANs allow to connect different subnets via unique port. In the assignment the virtual subnet containing `host-1-a` and the one containing `host-1-b` must be separated in terms of broadcasts area on the switch, so using VLANs the switch can be split in two virtual switches.
+I set up VLANs for the networks A and B.
 
-| VID | Subnet |
-| --- | ------ |
-| 10  | A      |
-| 20  | B      |
+| VLAN ID | Subnet | Interface |
+| ------- | ------ | --------- |
+| 10      | A      | eth1.10   |
+| 20      | B      | eth1.20   |
 
 ### Interface-IP mapping
 
@@ -93,11 +93,11 @@ Two different VLANs allow `router-1` to connect two different subnets via unique
 
 ### Vagrant file and provisioning scripts
 
-The project folder contains the Vagrant file, used to set up all the Virtual Machines (based on Trusty64), and the provisioning scripts for each VM.
+The project folder contains the Vagrant file, used to set up all the Virtual Machines (all based on Trusty64), and the provisioning scripts for each VM.
 
 #### Router 1
 
-Router 1 is a VM based on Trusty64. Here the code used in the Vagrantfile to create the VM with two different interfaces.
+Here the code used in the Vagrantfile to create the VM with two different interfaces. Then it will execute the provisioning script "router-1.sh"
   ```ruby
     config.vm.define "router-1" do |router1|
       router1.vm.box = "minimal/trusty64"
@@ -107,20 +107,27 @@ Router 1 is a VM based on Trusty64. Here the code used in the Vagrantfile to cre
       router1.vm.provision "shell", path: "router-1.sh"
     end
   ```
-This code will execute the provisioning script named "router-1.sh"
+##### Provisioning script
 
-The following lines are used to configure a trunk port for the VLAN:
+VLAN configuration to trunk the connection between `router-1` and `switch`:
   ```bash
     ip link add link eth1 name eth1.10 type vlan id 10
     ip link add link eth1 name eth1.20 type vlan id 20
   ```
-Then is possible to assign IP addresses:
+IP addresses assignment:
   ```bash
     ip addr add 192.168.10.254/24 dev eth1.10
     ip addr add 192.168.20.30/27 dev eth1.20
     ip addr add 192.168.255.253/30 dev eth2
   ```
-Lastly the IP forwarding using OSPF
+Interfaces set up:
+  ```bash
+    ip link set eth1 up
+    ip link set eth1.10 up
+    ip link set eth1.20 up
+    ip link set eth2 up
+  ```
+IP forwarding and FRRouting using OSPF protocol:
   ```bash
     sysctl net.ipv4.ip_forward=1
     sed -i 's/zebra=no/zebra=yes/g' /etc/frr/daemons
@@ -132,7 +139,7 @@ Lastly the IP forwarding using OSPF
 
 #### Router 2
 
-Router 2 is a VM based on Trusty64. Here the code used in the Vagrantfile to create the VM with two different interfaces.
+Here the code used in the Vagrantfile to create the VM with two different interfaces. Then it will execute the provisioning script "router-2.sh"
   ```ruby
     config.vm.define "router-2" do |router2|
       router2.vm.box = "minimal/trusty64"
@@ -142,14 +149,19 @@ Router 2 is a VM based on Trusty64. Here the code used in the Vagrantfile to cre
       router2.vm.provision "shell", path: "router-2.sh"
     end
   ```
-This code will execute the provisioning script named "router-2.sh"
+##### Provisioning script
 
-The following lines are used to configure IP addresses:
+IP addresses assignment:
   ```bash
     ip addr add 192.168.30.2/30 dev eth1
     ip addr add 192.168.255.254/30 dev eth2
   ```
-Then the IP forwarding using OSPF
+Interfaces set up:
+  ```bash
+    ip link set eth1 up
+    ip link set eth2 up
+  ```
+IP forwarding and FRRouting using OSPF protocol:
   ```bash
   sysctl net.ipv4.ip_forward=1
   sed -i 's/zebra=no/zebra=yes/g' /etc/frr/daemons
@@ -161,7 +173,7 @@ Then the IP forwarding using OSPF
 
 #### Switch
 
-Switch is a VM based on Trusty64. Here the code used in the Vagrantfile to create the VM with three different interfaces.
+Here the code used in the Vagrantfile to create the VM with three different interfaces. Then it will execute the provisioning script "switch.sh"
   ```ruby
     config.vm.define "switch" do |switch|
       switch.vm.box = "minimal/trusty64"
@@ -172,23 +184,26 @@ Switch is a VM based on Trusty64. Here the code used in the Vagrantfile to creat
       switch.vm.provision "shell", path: "switch.sh"
   end
   ```
-This code will execute the provisioning script named "switch.sh"
+##### Provisioning script
 
-The following lines are used to set up a bridge (named switch) and add the interfaces to it (_eth1_ and _eth2_ are used for VLAN):
+Set up a bridge (named switch) and add the interfaces to it: _eth1_ and _eth2_ are used for VLAN
   ```bash
     ovs-vsctl add-br switch
     ovs-vsctl add-port switch eth1
     ovs-vsctl add-port switch eth2 tag=10
     ovs-vsctl add-port switch eth3 tag=20
   ```
-Then the last command to set up ovs-system:
+Interfaces and ovs-system set up:
   ```bash
+    ip link set eth1 up
+    ip link set eth2 up
+    ip link set eth3 up
     ip link set dev ovs-system up
   ```
 
 #### Host A
 
-Host A is a VM based on Trusty64. Here the code used in the Vagrantfile to create the VM with one interface, connected to the _switch_.
+Here the code used in the Vagrantfile to create the VM with one interface. Then it will execute the provisioning script "host-1-a.sh".
   ```ruby
     config.vm.define "host-1-a" do |hosta|
       hosta.vm.box = "minimal/trusty64"
@@ -197,13 +212,14 @@ Host A is a VM based on Trusty64. Here the code used in the Vagrantfile to creat
       hosta.vm.provision "shell", path: "host-1-a.sh"
     end
   ```
-This code will execute the provisioning script named "host-1-a.sh"
+##### Provisioning script
 
-The following line is used to configure the IP address on _eth1_:
+IP address configuration on _eth1_ and interface set up:
   ```bash
     ip addr add 192.168.10.1/24 dev eth1
+    ip link set eth1 up
   ```
-Then is possible to set a static route to _router-1_:
+Set a static route to _router-1_:
   ```bash
     ip route add 192.168.0.0/8 via 192.168.10.254
   ```
@@ -211,7 +227,7 @@ Then is possible to set a static route to _router-1_:
 
 #### Host B
 
-Host B is a VM based on Trusty64. Here the code used in the Vagrantfile to create the VM with one interface, connected to the _switch_.
+Here the code used in the Vagrantfile to create the VM with one interface. Then it will execute the provisioning script "host-1-b.sh".
   ```ruby
     config.vm.define "host-1-b" do |hostb|
       hostb.vm.box = "minimal/trusty64"
@@ -220,20 +236,22 @@ Host B is a VM based on Trusty64. Here the code used in the Vagrantfile to creat
       hostb.vm.provision "shell", path: "host-1-b.sh"
     end
   ```
-This code will execute the provisioning script named "host-1-b.sh"
+##### Provisioning script
 
-The following line is used to configure the IP address on _eth1_:
+
+IP address configuration on _eth1_ and interface set up:
   ```bash
     ip addr add 192.168.20.1/27 dev eth1
+    ip link set eth1 up
   ```
-Then is possible to set a static route to _router-1_:
+Set a static route to _router-1_:
   ```bash
     ip route add 192.168.0.0/8 via 192.168.20.30
   ```
 
 #### Host C
 
-Host C is a VM based on Trusty64. Here the code used in the Vagrantfile to create the VM with one interface, connected to the _router-2_.
+Here the code used in the Vagrantfile to create the VM with one interface. Then it will execute the provisioning script "host-2-c.sh".
   ```ruby
     config.vm.define "host-2-c" do |hostc|
       hostc.vm.box = "minimal/trusty64"
@@ -242,31 +260,39 @@ Host C is a VM based on Trusty64. Here the code used in the Vagrantfile to creat
       hostc.vm.provision "shell", path: "host-2-c.sh"
     end
   ```
-This code will execute the provisioning script named "host-2-c.sh"
+##### Provisioning script
 
-The following line is used to configure the IP address on _eth1_:
+IP address configuration on _eth1_ and interface set up:
   ```bash
     ip addr add 192.168.30.1/30 dev eth1
+    ip link set eth1 up
   ```
-Then is possible to set a static route to _router-2_:
+Set a static route to _router-2_:
   ```bash
     ip route add 192.168.0.0/8 via 192.168.30.2
   ```
-Lastly the configuration of Docker to create a webserver based on Nginx and a webpage located in _/docker-nginx/html_ directory.
+Docker configuration to create a webserver based on Nginx and a webpage located in _/docker-nginx/html_ directory.
+
   ```bash
     docker pull nginx
     mkdir -p ~/docker-nginx/html
     echo "<html>
     <head><title>DNCS ASSIGNMENT</title></head>
     <body>
-    <p>So long, and thanks for all the fish.<p>
+    <p>Host C website.<p>
     </body>
     </html>" > ~/docker-nginx/html/index.html
     docker run --name docker-nginx -p 80:80 -d -v ~/docker-nginx/html:/usr/share/nginx/html nginx
   ```
+  Note: due to compatibility issues with Trusty64, the docker version installed is 18.06.1
+    ```bash
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
+    add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+    apt-get update
+    apt-get install -y docker-ce=18.06.1~ce~3-0~ubuntu jq --assume-yes --force-yes
+    ```
 
-
-## First start
+## How-to test
 
 -   Install Virtualbox and Vagrant
 -   Open the terminal and execute the command: `git clone https://github.com/gvlaan/dncs-lab`
@@ -300,7 +326,7 @@ Once you launch the vagrant script, it may take a while for the entire topology 
   ```
   To log out use the command `exit`
 
--   to test reachability log into `host-2-c` and try to ping `host-1-b` with `ping 192.168.20.1`
+-   To test reachability log into `host-2-c` and try to ping `host-1-b` with `ping 192.168.20.1`
 
   ```bash
     [dncs-lab]$ vagrant ssh host-2-c
